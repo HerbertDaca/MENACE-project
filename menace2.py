@@ -2,18 +2,25 @@ import random
 import numpy as np
 import pandas as pd
 
-
 class MENACE:
     def __init__(self):
         self.boxes = {}  # Pudełka z koralikami dla każdego stanu gry
         self.moves_history = []  # Historia ruchów MENACE w danej grze
 
     def make_move(self, board, available_moves):
-        board_str = str(board)
+        board_str = self.board_to_string(board)  # Convert board to string
 
         # Tworzenie nowego "pudełka" z koralikami, jeśli stan gry nie był wcześniej widziany
         if board_str not in self.boxes:
-            self.boxes[board_str] = {move: 3 for move in available_moves}
+            num_moves = len(available_moves)
+            if num_moves == 9:
+                self.boxes[board_str] = {move: 4 for move in available_moves}
+            elif num_moves == 8 or num_moves == 7:
+                self.boxes[board_str] = {move: 3 for move in available_moves}
+            elif num_moves == 6 or num_moves == 5:
+                self.boxes[board_str] = {move: 2 for move in available_moves}
+            else:
+                self.boxes[board_str] = {move: 1 for move in available_moves}
 
         # Losowanie ruchu na podstawie koralików
         move = self.choose_move(board_str)
@@ -41,17 +48,25 @@ class MENACE:
         # Reset historii ruchów po zakończeniu gry
         self.moves_history = []
 
-    def save_to_excel(self, file_name="menace_boxes.xlsx"):
+    def save_to_excel(self, file_name="menace_learning.xlsx"):
         # Tworzymy listy do przechowywania danych
         data = []
         for board_str, moves in self.boxes.items():
             for move, beads in moves.items():
-                data.append([board_str, move, beads])
+                data.append([board_str, str(move), beads])
 
         # Tworzymy DataFrame i zapisujemy do pliku Excel
         df = pd.DataFrame(data, columns=["Board", "Move", "Beads"])
         df.to_excel(file_name, index=False)
 
+    def board_to_string(self, board):
+        """Konwertuje planszę numpy.ndarray na czytelny ciąg znaków."""
+        return str(board)
+
+    def string_to_board(self, board_str):
+        """Konwertuje ciąg znaków z powrotem na numpy.ndarray."""
+        board_list = eval(board_str)  # Convert the string back to a list (dangerous in real-world code)
+        return np.array(board_list)
 
 # Funkcje pomocnicze do symulacji gry
 

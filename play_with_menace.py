@@ -2,18 +2,34 @@ import random
 import numpy as np
 import pandas as pd
 
-
 class MENACE:
     def __init__(self):
         self.boxes = {}  # Pudełka z koralikami dla każdego stanu gry
         self.moves_history = []  # Historia ruchów MENACE w danej grze
 
+    def board_to_string(self, board):
+        """Konwertuje planszę numpy.ndarray na czytelny ciąg znaków."""
+        return str(board)
+
+    def string_to_board(self, board_str):
+        """Konwertuje ciąg znaków z powrotem na numpy.ndarray."""
+        board_list = eval(board_str)  # Convert the string back to a list (dangerous in real-world code)
+        return np.array(board_list)
+
     def make_move(self, board, available_moves):
-        board_str = str(board)
+        board_str = self.board_to_string(board)  # Convert board to string
 
         # Tworzenie nowego "pudełka" z koralikami, jeśli stan gry nie był wcześniej widziany
         if board_str not in self.boxes:
-            self.boxes[board_str] = {move: 3 for move in available_moves}
+            num_moves = len(available_moves)
+            if num_moves == 9:
+                self.boxes[board_str] = {move: 4 for move in available_moves}
+            elif num_moves == 8 or num_moves == 7:
+                self.boxes[board_str] = {move: 3 for move in available_moves}
+            elif num_moves == 6 or num_moves == 5:
+                self.boxes[board_str] = {move: 2 for move in available_moves}
+            else:
+                self.boxes[board_str] = {move: 1 for move in available_moves}
 
         # Losowanie ruchu na podstawie koralików
         move = self.choose_move(board_str)
@@ -27,6 +43,11 @@ class MENACE:
         # Wybór ruchu na podstawie liczby koralików w "pudełku"
         moves = list(self.boxes[board_str].keys())
         weights = list(self.boxes[board_str].values())
+
+        print(f"Dostępne ruchy dla planszy {board_str}:")
+        for move, weight in zip(moves, weights):
+            print(f"Ruch: {move}, Koraliki: {weight}")
+
         move = random.choices(moves, weights=weights)[0]
         return move
 
@@ -36,38 +57,36 @@ class MENACE:
 
         # Aktualizacja koralików dla każdej planszy, na której MENACE wykonał ruch
         for board_str, move in self.moves_history:
-            self.boxes[board_str][move] = max(1, self.boxes[board_str][move] + reward)
+            self.boxes[board_str][move] = max(0, self.boxes[board_str][move] + reward)
 
         # Reset historii ruchów po zakończeniu gry
         self.moves_history = []
 
-    def save_to_excel(self, file_name="menace_boxes.xlsx"):
-        # Tworzymy listy do przechowywania danych
+    def save_to_excel(self, file_name="menace_learning.xlsx"):
         data = []
         for board_str, moves in self.boxes.items():
             for move, beads in moves.items():
-                data.append([board_str, move, beads])
+                data.append([board_str, str(move), beads])
 
-        # Tworzymy DataFrame i zapisujemy do pliku Excel
         df = pd.DataFrame(data, columns=["Board", "Move", "Beads"])
         df.to_excel(file_name, index=False)
 
-    def load_from_excel(self, file_name="menace_boxes.xlsx"):
-        # Ładowanie pudełek z pliku Excel
+    def load_from_excel(self, file_name="menace_learning.xlsx"):
         df = pd.read_excel(file_name)
         for _, row in df.iterrows():
             board_str = row["Board"]
-            move = eval(row["Move"])  # Konwertuj ciąg znaków na tuple
+            move = eval(row["Move"])
             beads = row["Beads"]
+
+            print(f"Wczytywanie planszy: {board_str}, Ruch: {move}, Koraliki: {beads}")
+
             if board_str not in self.boxes:
                 self.boxes[board_str] = {}
             self.boxes[board_str][move] = beads
 
-
 # Funkcje pomocnicze do gry z graczem
 
 def check_winner(board):
-    """Sprawdza, czy na planszy jest zwycięzca."""
     win_patterns = [
         board[0, :], board[1, :], board[2, :],  # wiersze
         board[:, 0], board[:, 1], board[:, 2],  # kolumny
@@ -80,26 +99,18 @@ def check_winner(board):
             return "*"
     return None
 
-
 def is_draw(board):
-    """Sprawdza, czy na planszy jest remis."""
     return np.all(board != " ")  # Remis, jeśli nie ma wolnych pól
 
-
 def available_moves(board):
-    """Zwraca dostępne ruchy na planszy."""
     return [(r, c) for r in range(3) for c in range(3) if board[r, c] == " "]
 
-
 def print_board(board):
-    """Wyświetla aktualną planszę."""
     for row in board:
         print(" | ".join(row))
         print("-" * 5)
 
-
 def player_move(board):
-    """Gracz wykonuje ruch."""
     while True:
         try:
             move = input("Podaj swój ruch (rząd, kolumna) np. 0 1: ")
@@ -111,9 +122,7 @@ def player_move(board):
         except (ValueError, IndexError):
             print("Nieprawidłowy format, spróbuj ponownie.")
 
-
 def play_game_with_player(menace):
-    """Gra MENACE vs gracz."""
     board = np.full((3, 3), " ")
     player_turn = "X"  # MENACE zawsze zaczyna jako "X"
 
@@ -139,16 +148,13 @@ def play_game_with_player(menace):
 
         player_turn = "X" if player_turn == "*" else "*"
 
-
 def play_against_menace():
-    """Pozwala graczowi zagrać z MENACE i zapisuje wynik do pliku Excel."""
     menace = MENACE()
-    menace.load_from_excel("menace_learning.xlsx")  # Załadowanie wyuczonych pudełek MENACE
+    menace.load_from_excel("menace_learning.xlsx")
 
     result = play_game_with_player(menace)
-    menace.game_over(result)  # Aktualizacja MENACE na podstawie wyniku gry
-    menace.save_to_excel("menace_learning.xlsx")  # Zapisanie wyników do Excela
-
+    menace.game_over(result)
+    menace.save_to_excel("menace_learning.xlsx")
 
 # Uruchomienie gry z graczem
 play_against_menace()
